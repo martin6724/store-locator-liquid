@@ -1,0 +1,314 @@
+
+      <style>
+      /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+      .map {
+        height: 600px;
+       	width:100%;
+      }
+
+      #description {
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+      }
+
+      #infoWindow-content .title {
+        font-weight: bold;
+      }
+
+      #infoWindow-content {
+        display: none;
+      }
+
+      #map #infoWindow-content {
+        display: inline;
+      }
+
+      .pac-card {
+        margin: 10px 10px 0 0;
+        border-radius: 2px 0 0 2px;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        outline: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        background-color: #fff;
+        font-family: Roboto;
+      }
+
+      #pac-container {
+        padding-bottom: 12px;
+        margin-right: 12px;
+      }
+
+      .pac-controls {
+        display: inline-block;
+        padding: 5px 11px;
+      }
+
+      .pac-controls label {
+        font-family: Roboto;
+        font-size: 13px;
+        font-weight: 300;
+      }
+
+      #pac-input {
+        background-color: #fff;
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+        margin-left: 12px;
+        padding: 0 11px 0 13px;
+        text-overflow: ellipsis;
+        width: 400px;
+        top:2% !important;
+      }
+
+      #pac-input:focus {
+        border-color: #4d90fe;
+      }
+
+      #title {
+        color: #fff;
+        background-color: #4d90fe;
+        font-size: 25px;
+        font-weight: 500;
+        padding: 6px 12px;
+      }
+      #target {
+        width: 345px;
+      }
+    </style>
+
+<div class="page-content" style="padding:20px;">
+
+    <div style="float:left; margin-left:25px;display:none;">
+         <label for="raddressInput">Search location:</label>
+         <input type="text" id="addressInput" size="55"/>
+    </div>
+    <div style="float: right;margin-bottom:20px;display:none;">
+        <label for="radiusSelect">Radius:</label>
+        <select style="float:right;" id="radiusSelect" label="Radius">
+          <option value="50" selected>30 miles</option>
+          <option value="30">18 miles</option>
+          <option value="20">12 miles</option>
+          <option value="10">6 miles</option>
+        </select>
+
+        <input type="button" id="searchButton" value="Search"/>
+    </div>
+    <div><select id="locationSelect" style="width: 10%; visibility: hidden"></select></div>
+
+
+<script>
+      // This example adds a search box to a map, using the Google Place Autocomplete
+      // feature. People can enter geographical searches. The search box will return a
+      // pick list containing a mix of places and predicted search terms.
+
+      // This example requires the Places library. Include the libraries=places
+      // parameter when you first load the API. For example:
+      // src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places">
+
+      // Escapes HTML characters in a template literal string, to prevent XSS.
+      // See https://www.owasp.org/index.php/XSS_%28Cross_Site_Scripting%29_Prevention_Cheat_Sheet#RULE_.231_-_HTML_Escape_Before_Inserting_Untrusted_Data_into_HTML_Element_Content
+      function sanitizeHTML(strings) {
+        const entities = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'};
+        let result = strings[0];
+        for (let i = 1; i < arguments.length; i++) {
+          result += String(arguments[i]).replace(/[&<>'"]/g, (char) => {
+            return entities[char];
+          });
+          result += strings[i];
+        }
+        return result;
+      }
+
+      var map;
+      var markers = [];
+      var infoWindow;
+      var locationSelect;
+
+      function initMap() {
+         map = new google.maps.Map(document.getElementsByClassName('map')[0], {
+          // center: {lat: 25.8184725, lng: -80.35396791309786},
+          zoom: 12,
+          mapTypeId: 'roadmap',
+          styles:
+          [
+            {
+                "featureType": "administrative",
+                "elementType": "all",
+                "stylers": [
+                    {
+                        "visibility": "simplified"
+                    },
+                    {
+                        "color": "#646464"
+                    }
+                ]
+            },
+            {
+                "featureType": "administrative",
+                "elementType": "labels.text.fill",
+                "stylers": [
+                    {
+                        "color": "#999798"
+                    }
+                ]
+            },
+            {
+                "featureType": "landscape",
+                "elementType": "all",
+                "stylers": [
+                    {
+                        "color": "#f9eff4"
+                    }
+                ]
+            },
+            {
+                "featureType": "poi",
+                "elementType": "all",
+                "stylers": [
+                    {
+                        "visibility": "off"
+                    }
+                ]
+            },
+            {
+                "featureType": "road",
+                "elementType": "all",
+                "stylers": [
+                    {
+                        "saturation": -100
+                    },
+                    {
+                        "lightness": 45
+                    }
+                ]
+            },
+            {
+                "featureType": "road.highway",
+                "elementType": "all",
+                "stylers": [
+                    {
+                        "visibility": "simplified"
+                    }
+                ]
+            },
+            {
+                "featureType": "road.arterial",
+                "elementType": "labels.icon",
+                "stylers": [
+                    {
+                        "visibility": "off"
+                    }
+                ]
+            },
+            {
+                "featureType": "transit",
+                "elementType": "all",
+                "stylers": [
+                    {
+                        "visibility": "off"
+                    }
+                ]
+            },
+            {
+                "featureType": "water",
+                "elementType": "all",
+                "stylers": [
+                    {
+                        "color": "#f7cfdf"
+                    },
+                    {
+                        "visibility": "on"
+                    }
+                ]
+            }
+        ]
+
+
+}); //end const map decl
+
+//loads geojson for store locations onto map
+var script = document.createElement('script');
+        // This example uses a local copy of the GeoJSON
+        script.src = '//linktoshopifyfilegoeshere';
+        document.getElementsByTagName('head')[0].appendChild(script);
+      } //end initMap
+
+      // Loop through the results array and place a marker for each
+      // set of coordinates.
+
+window.feed_callback = function (results) {
+  for (var i = 0; i < results.features.length; i++) {
+    var coords = results.features[i].geometry.coordinates;
+    var latLng = new google.maps.LatLng(coords[1], coords[0]);
+    var marker = new google.maps.Marker({
+      position: latLng,
+      map: map,
+      icon: '{{ 'colortrak-icon.png' | asset_img_url: '60x' }}'
+    });
+
+    if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function (position) {
+        initialLocation = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+        map.setCenter(initialLocation);
+    }, error);
+}
+
+function error(err) {
+  console.log('ERROR('+err.code+'): '+err.message);
+  if (map && map.setCenter) map.setCenter(new google.maps.LatLng(25.8184725, -80.35396791309786))
+};
+
+
+  var apiKey = 'AIzaSyCB-PI6dC6MyRKilJ8Zyjs2mjaISBbdvq8';
+
+  var infoWindow = new google.maps.InfoWindow({
+    maxWidth: 250,
+
+  });
+
+  google.maps.event.addListener(map, 'click', function() {
+       infowindow.close();
+   });
+
+  google.maps.event.addListener(marker, 'click', (function(marker, i) {
+                return function() {
+                  var name = results.features[i].properties.name;
+                  var address = results.features[i].properties.address;
+                  var city = results.features[i].properties.city;
+                  var state = results.features[i].properties.state;
+                  var country = results.features[i].properties.country;
+                  var html = "<b>" + name + "</b> <br/>" + address + "</b> <br/>" + city + ", " + state ;
+                    infoWindow.setContent(html);
+                    infoWindow.open(map, marker, html);
+                }
+            })(marker, i));
+
+            markers.push(marker);
+
+  infoWindow.setOptions({
+    pixelOffset: new google.maps.Size(0, -10)
+  }); // Show the information for a store when its marker is clicked.
+
+}
+}
+
+google.maps.event.addDomListener(window, 'load', initialize);
+
+ // The function to trigger the marker click, 'id' is the reference index to the 'markers' array.
+ function myClick(id){
+     google.maps.event.trigger(markers[id], 'click');
+ }
+
+  </script>
+
+<script async="true" defer="defer" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCB-PI6dC6MyRKilJ8Zyjs2mjaISBbdvq8&amp;callback=initMap"></script>
+  <div class="rte rte--nomargin">
+    {{ page.content }}
+  </div>
+
+
+</div>
